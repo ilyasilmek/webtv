@@ -1,64 +1,73 @@
-# WebTV
+# WebTV 1.1
 
-M3U listeleri ve tekil yayın bağlantıları için mobil uyumlu web oynatıcı. Kanal arşivi `index.html`, izleme ekranı `watch.html` üzerinden açılır. Derleme ve sunucu tarafı uygulama gerektirmez.
+M3U / `m3u_plus` kanal listeleri için web oynatıcı. HTTP IPTV kaynaklarını, MPEG-TS (`.ts`), HLS (`.m3u8`) ve tarayıcının desteklediği video dosyalarını açar. Tasarım ve iki ekran korunur: `index.html` kanal arşivi, `watch.html` izleme ekranı.
 
-## Çalıştırma
+## Başlatma
 
-Proje klasöründe:
+Node.js 22 veya üstüyle, ek paket kurmadan:
 
 ```sh
-python3 -m http.server 8080
+npm start
 ```
 
-Ardından `http://localhost:8080` adresini açın. Dosyaları `file://` ile açmayın; JavaScript modülleri ve tarayıcı depolaması HTTP/HTTPS üzerinden çalışır. Python kuruluysa `npm start` aynı sunucuyu başlatır.
+`http://localhost:8080` adresini açın. `PORT` ve `HOST` ortam değişkenleriyle dinleme adresi ayarlanabilir.
 
-## Kullanım
+Docker ile:
 
-1. **Liste ekle** düğmesinden bir M3U dosyası yükleyin veya M3U liste bağlantısını girin. Tek bir HLS/MP4 bağlantısı için **Tek yayın** sekmesini kullanın.
-2. Mevcut kanallara ekleyebilir veya listenizi değiştirebilirsiniz. Dosyalar en fazla 8 MB, arşiv en fazla 10.000 kanaldır. Aynı yayın adresi tekrar eklenirse birleştirilir. Desteklenmeyen adreslerin sayısı bildirilir.
-3. Kanalları ad veya kategoriyle arayın. Kalp düğmesi favorilere ekler. **İzle** bağlantısı izleme sayfasını açar.
-4. Oynatıcı kontrollerinden ses, oynatma/duraklatma ve tam ekranı yönetin. Destekleyen tarayıcılarda pencere içinde izleme vardır.
-5. Kanal arşivi, favoriler ve son izlenen kanal bu tarayıcının IndexedDB alanında saklanır. Site verilerini temizlemek bunları siler. Başka cihaz veya tarayıcıya kendiliğinden aktarılmaz.
+```sh
+docker build -t webtv .
+docker run --rm -p 8080:8080 webtv
+```
 
-**Örnek yayını dene**, HLS.js projesinin kullandığı Mux test videosunu ekler; gerçek bir TV kanalı veya canlı yayın değildir.
+Canlı kullanım için Node.js veya Docker destekleyen bir sunucuda çalıştırın; HTTPS'i barındırma sağlayıcısı ya da ters proxy üzerinden sağlayın. Proxy orijinal Host başlığını korumalıdır. İstenirse `APP_ORIGIN=https://tv.example.com` ile izin verilen uygulama adresi sabitlenir.
 
-## Yayın desteği ve sınırlar
+**HTTP ve CORS kısıtlı kaynaklar için GitHub Pages tek başına yeterli değildir.** Pages yalnızca statik dosyaları sunar; bu sürümdeki Node.js bağlantı sunucusunu çalıştırmaz. Sunucu olmadan HTTPS ve CORS uyumlu kaynaklarda doğrudan oynatma devam eder. Kaynak HTTP kullanıyorsa tam Node.js sürümünü açın.
 
-- HLS, Safari'de yerel video desteğiyle, diğer uyumlu tarayıcılarda HLS.js 1.6.13 ile oynatılır. MP4 ve WebM doğrudan video öğesiyle açılır. Uzantısız adresler varsayılan olarak HLS kabul edilir; tek yayın eklerken biçim elle seçilebilir.
-- WebTV yayın dönüştürmez, proxy kullanmaz ve RTSP/UDP, DRM, özel HTTP başlıkları veya Xtream Codes girişini desteklemez. Listedeki özel VLC/Kodi başlık yönergeleri uygulanmaz.
-- HLS manifestleri ve parçaları, kaynak sunucuda uygun CORS başlıklarıyla sunulmalıdır. M3U bağlantısından içe aktarma da CORS izni gerektirir. Dosyadan içe aktarma liste CORS sorununu çözebilir; yayın sunucusunun CORS sorununu çözmez.
-- HTTPS sayfalarda HTTP yayın ve liste adresleri engellenir; kaynağın HTTPS adresini kullanın. Video codec desteği tarayıcıya bağlıdır.
-- Yerel M3U dosyasında tam yayın adresleri kullanın. Bağlantıdan alınan M3U içindeki göreli adresler, yönlendirme sonrasındaki liste adresine göre çözülür.
-- Otomatik oynatma tarayıcı tarafından engellenirse video üzerindeki oynat düğmesine basın.
-- Kanal adresleri ve içlerindeki erişim anahtarları bu tarayıcıda saklanır ve oynatma sırasında ilgili yayın sunucusuna gönderilir. Liste içerikleri GitHub'a veya uygulamaya ait başka bir sunucuya yüklenmez. Kanal logoları varsa ilgili logo sunucusundan alınır.
-- HLS.js 1.6.13 ve Türkçe karakterleri içeren font dosyaları uygulamayla birlikte gelir; arayüz ve oynatıcı için harici CDN gerekmez. Yayınlar, uzaktaki listeler ve kanal logoları için internet bağlantısı gerekir. Tarayıcı yerel HLS desteği sunuyorsa HLS.js yüklenmez.
+## Liste ekleme
 
-Teknik referans: [HLS.js dokümantasyonu](https://github.com/video-dev/hls.js/blob/master/docs/API.md).
+1. **Liste ekle → Liste bağlantısı** sekmesine kendi `get.php?username=…&password=…&type=m3u_plus&output=ts` bağlantınızı yapıştırın. Liste bağlantıları uygulama sunucusu üzerinden kaynak sunucudan alınır.
+2. İsterseniz M3U dosyası yükleyin. Listede `tvg-name`, `tvg-logo` ve `group-title` bulunabilir; görünen kanal adı ve kategoriler korunur.
+3. Mevcut arşive ekleme veya listeyi değiştirme seçeneğini kullanın. En fazla 64 MB / 100.000 yayın desteklenir. Tekrar eden yayın adresleri birleştirilir.
+4. **İzle** düğmesiyle kanalı açın. Arama, kategoriler, favoriler, son izlenen kanal, tam ekran ve destekleyen tarayıcılarda pencere içinde izleme vardır.
 
-## Statik yayınlama
+Gösterim her seferinde 100 satırla sınırlıdır; **Daha fazla kanal göster** ile artırılır. Büyük arşivler için kanal verisi ile favori/son izlenen bilgisi ayrı depolama kayıtlarına yazılır. Önceki sürümün arşivi ilk kaydetmede korunarak taşınır.
 
-Dosyaları herhangi bir statik HTTPS barındırmaya yükleyin. GitHub Pages için repo ayarlarında **Settings → Pages → Deploy from a branch → main / (root)** seçilebilir. Yayın adresi, Pages etkinleştirildikten sonra `https://ilyasilmek.github.io/webtv/` olur. Bu depo Pages'i kendiliğinden etkinleştirmez.
+## Oynatma
 
-## Test
+- `.ts`, `.m2ts`, uzantısız `/live/…` ve tipik uzantısız IPTV kanal adresleri MPEG-TS olarak açılır. `output=ts` listelerindeki diğer uzantısız yayınlar da TS kabul edilir.
+- `.m3u8` HLS olarak açılır. HLS varyantları, segmentler, şifreleme anahtarı ve başlangıç parçası bağlantıları aynı uygulama sunucusundan geçirilir.
+- `/movie/…`, `/series/…` ve MP4/WebM gibi dosyalar video dosyası olarak açılır. MKV/AVI adreslerinin içe alınması, tüm codec'lerinin tarayıcıda desteklendiği anlamına gelmez.
+- **Tek yayın** sekmesinden TS, HLS veya dosya biçimi elle seçilebilir.
+- MPEG-TS için mpegts.js 1.8.0, HLS için HLS.js 1.6.13 uygulama dosyalarına dahildir. Yerel HLS desteği varsa tarayıcının oynatıcısı kullanılır. Türkçe karakterleri içeren Barlow Condensed ve Source Sans 3 fontları da paket içindedir.
+- Sunucu akışı iletir; **codec dönüştürmez**. H.264/AAC gibi tarayıcının desteklediği video/ses biçimleri gerekir. Kaynağın hesap, ülke, IP, eşzamanlı bağlantı ve DRM kısıtları uygulama tarafından kaldırılmaz.
+- RTSP/UDP, DRM, Xtream Codes katalog API'si veya VLC/Kodi özel başlık yönergeleri desteklenmez. Burada desteklenen Xtream kullanım biçimi `get.php` üzerinden alınan M3U listesidir.
 
-Node.js 20 veya üstüyle, ek paket kurmadan:
+Kaynak erişim reddi, zaman aşımı veya desteklenmeyen codec olduğunda hata gösterilir. Hesap bağlantıları ve hata yanıtları için tam kaynak URL'si günlük dosyasına yazılmaz.
+
+## Veriler ve bağlantı sunucusu
+
+Kanal arşivi, yayın adresleri, favoriler ve son izlenen kanal bu tarayıcının IndexedDB alanında saklanır. Site verilerini temizlemek bunları siler. Başka cihazlara otomatik aktarılmaz. Listeler ve şifreler depoya gömülmez.
+
+Liste/yayın/görsel adresleri, kaynaklara bağlanmak için uygulama sunucusuna iletilir. Sunucu bunları diske veya kalıcı veritabanına kaydetmez. Oturum rotaları bellek içinde tutulur; oynatma açıkken yenilenir. Sunucu yeniden başlatılırsa yayını tekrar açın.
+
+Bağlantı rotaları rastgele, oturuma bağlı kimlik kullanır; tarayıcıdaki oynatma URL'sine kullanıcı adı veya şifre yazılmaz. POST işlemleri aynı uygulama adresinden kabul edilir. Her kaynak isteğinde DNS çözümü doğrulanır ve bağlantıya sabitlenir; yerel ağ, loopback ve özel IP adresleri reddedilir. Yönlendirmeler de tekrar doğrulanır. İstekler ve eşzamanlı akışlar sınırlandırılır. HLS ve logo rotaları kaynak URL'sini görünür bağlantılara kopyalamaz.
+
+**Örnek yayını dene**, Mux test videosunu ekler; canlı TV kanalı değildir.
+
+## Test ve dosyalar
 
 ```sh
 npm test
 ```
 
-Testler M3U ayrıştırma, güvenli URL süzme, Türkçe arama, tekrar birleştirme, yayın biçimi ve uzak liste hata/boyut kontrollerini kapsar.
+Testler M3U ayrıştırma, TS/HLS/dosya ayrımı, Türkçe arama, HTTP liste aktarımı, HLS manifest yönlendirmesi, oturum izolasyonu, erişim hataları ve özel ağ adreslerinin reddini kapsar.
 
-## Dosyalar
+- `server.js`, `server/network.js`: Node.js sunucusu ve doğrulanan kaynak bağlantıları.
+- `assets/connection.js`: liste, oynatma ve kanal logosu bağlantıları.
+- `assets/core.js`: ayrıştırma ve filtreler.
+- `assets/store.js`: IndexedDB arşivi ve sekmeler arası bildirim.
+- `assets/library.js`, `assets/watch.js`, `assets/player.js`: arşiv, izleme ekranı ve oynatıcı yaşam döngüsü.
+- `assets/style.css`, `assets/mark.svg`, `assets/fonts*`: onaylanan yayın cetveli kimliği.
+- `assets/vendor/`: HLS.js / mpegts.js ve Apache 2.0 lisansları; font lisansları `assets/fonts/` içinde.
 
-- `index.html`: arşiv, içe aktarma penceresi, favoriler.
-- `watch.html`: izleme ekranı ve kanal değiştirme.
-- `assets/core.js`: liste ayrıştırma, adres doğrulama, filtreler.
-- `assets/store.js`: kalıcı IndexedDB deposu ve sekmeler arası bildirim.
-- `assets/library.js`, `assets/watch.js`: ekran davranışları.
-- `assets/player.js`: HLS ve yerel video oynatma yaşam döngüsü.
-- `assets/style.css`, `assets/mark.svg`: tasarım kimliği.
-- `assets/fonts.css`, `assets/fonts/`: Barlow Condensed / Source Sans 3 fontları ve SIL OFL lisansları.
-- `assets/vendor/`: HLS.js 1.6.13 ve Apache 2.0 lisansı.
-
-Tasarım: televizyon yayın cetveli referansı; kömür, kırık beyaz ve kehribar palet; Barlow Condensed başlıklar ve Source Sans 3 metinler; liste temelli düzen. Klavye odakları, etiketler, azaltılmış hareket desteği ve yerel video kontrolleri kullanılır.
+Teknik referanslar: [HLS.js](https://github.com/video-dev/hls.js), [mpegts.js](https://github.com/xqq/mpegts.js).

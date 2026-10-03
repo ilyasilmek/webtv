@@ -1,3 +1,4 @@
+import {imageURL} from './connection.js';
 export const $ = selector => document.querySelector(selector);
 export function el(tag, className, text) {
   const node = document.createElement(tag);
@@ -30,7 +31,8 @@ export function channelLogo(channel) {
   const wrap = el('span', 'channel-logo', channel.name.split(/\s+/).slice(0, 2).map(word => word[0] || '').join('').toLocaleUpperCase('tr'));
   if (channel.logo) {
     const image = document.createElement('img');
-    image.src = channel.logo; image.alt = ''; image.loading = 'lazy'; image.referrerPolicy = 'no-referrer';
+    image.alt = ''; image.loading = 'lazy'; image.referrerPolicy = 'no-referrer';
+    imageURL(channel.logo).then(url=>{if(url)image.src=url;else image.remove();}).catch(()=>image.remove());
     image.addEventListener('error', () => image.remove(), { once: true }); wrap.append(image);
   }
   return wrap;

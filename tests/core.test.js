@@ -33,7 +33,15 @@ test('remote list is bounded and uses final redirect URL for relative paths', as
   const mock = async () => { const response = new Response('#EXTM3U\n#EXTINF:-1,Channel\nstream.m3u8'); Object.defineProperty(response, 'url', { value: 'https://cdn.example/list/main.m3u' }); return response; };
   const fetched = await fetchPlaylist('https://example.com/list', mock);
   assert.equal(parseM3U(fetched.text, fetched.base).channels[0].url, 'https://cdn.example/list/stream.m3u8');
-  await assert.rejects(fetchPlaylist('https://example.com/', async () => new Response('', { headers: { 'content-length': String(MAX_BYTES + 1) } })), /8 MB/);
+  await assert.rejects(fetchPlaylist('https://example.com/', async () => new Response('', { headers: { 'content-length': String(MAX_BYTES + 1) } })), /64 MB/);
   await assert.rejects(fetchPlaylist('https://example.com/', async () => new Response('', { status: 403 })), /403/);
   await assert.rejects(fetchPlaylist('https://example.com/', async () => { throw new TypeError('Failed to fetch'); }), /CORS/);
+});
+
+test('m3u_plus TS list keeps channel metadata and separates HLS, live TS, movies and series',()=> {
+  const list='#EXTM3U\n#EXTINF:-1 tvg-id="channel.tr" tvg-name="TR TV" tvg-logo="http://provider.example/logo.png" group-title="TR | ULUSAL",TR TV HD\nhttp://provider.example/live/demo/example/100.ts\n#EXTINF:-1 group-title="FİLMLER",Film\nhttp://provider.example/movie/demo/example/200.mp4\n#EXTINF:-1 group-title="DİZİLER",Dizi 1\nhttp://provider.example/series/demo/example/300.mkv\n#EXTINF:-1,No extension\nhttp://provider.example/stream?id=400\n#EXTINF:-1,HLS\nhttp://provider.example/live/demo/example/500.m3u8';
+  const channels=parseM3U(list,'http://provider.example/get.php?type=m3u_plus&output=ts').channels;
+  assert.equal(channels[0].name,'TR TV HD');assert.equal(channels[0].group,'TR | ULUSAL');assert.equal(channels[0].logo,'http://provider.example/logo.png');
+  assert.equal(channels[1].logo,'');assert.equal(safeURL('','http://provider.example/get.php?password=example'),'');
+  assert.deepEqual(channels.map(streamType),['ts','file','file','ts','hls']);
 });

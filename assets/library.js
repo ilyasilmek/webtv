@@ -1,4 +1,5 @@
-import { parseM3U, makeChannel, fetchPlaylist, filterChannels, groupsFor, mergeChannels, MAX_BYTES } from './core.js';
+import { parseM3U, makeChannel, filterChannels, groupsFor, mergeChannels, MAX_BYTES } from './core.js';
+import {loadPlaylist} from './connection.js';
 import { readState, updateState, toggleFavorite, subscribe } from './store.js';
 import { $, el, icon, decorateIcons, notify, channelLogo, favoriteButton } from './ui.js';
 
@@ -16,7 +17,8 @@ function render() {
   const focusedFavorite = document.activeElement?.dataset.favorite;
   const results = filterChannels(state.channels, { query: $('#search').value, group, favoritesOnly, favorites: state.favorites });
   $('#all-count').textContent = state.channels.length;
-  $('#fav-count').textContent = state.channels.filter(channel => state.favorites.includes(channel.id)).length;
+  const savedFavorites=new Set(state.favorites);
+  $('#fav-count').textContent = state.channels.filter(channel => savedFavorites.has(channel.id)).length;
   $('#all-channels').classList.toggle('active', !favoritesOnly && !group);
   $('#favorites').classList.toggle('active', favoritesOnly);
   $('#all-channels').setAttribute('aria-pressed', String(!favoritesOnly && !group));
@@ -85,7 +87,7 @@ tabs.forEach((tab, index) => {
     }
   };
 });
-$('#playlist-file').onchange = () => { $('#file-name').textContent = $('#playlist-file').files[0]?.name || '.m3u veya .m3u8 · en fazla 8 MB'; };
+$('#playlist-file').onchange = () => { $('#file-name').textContent = $('#playlist-file').files[0]?.name || '.m3u veya .m3u8 · en fazla 64 MB'; };
 
 async function saveChannels(channels, name, mode) {
   state = await updateState(current => {
@@ -113,14 +115,14 @@ $('#import-form').onsubmit = async event => {
     } else if (panel === 'file') {
       const file = $('#playlist-file').files[0];
       if (!file) throw new Error('Bir M3U dosyası seçin.');
-      if (file.size > MAX_BYTES) throw new Error('Liste en fazla 8 MB olabilir.');
+      if (file.size > MAX_BYTES) throw new Error('Liste en fazla 64 MB olabilir.');
       result = parseM3U(await file.text()); name = file.name;
     } else {
-      const remote = await fetchPlaylist($('#playlist-url').value);
+      const remote = await loadPlaylist($('#playlist-url').value);
       result = parseM3U(remote.text, remote.base); name = 'Bağlantıdan eklenen liste';
     }
     await saveChannels(result.channels, name, mode);
-    dialog.close(); $('#import-form').reset(); $('#file-name').textContent = '.m3u veya .m3u8 · en fazla 8 MB';
+    dialog.close(); $('#import-form').reset(); $('#file-name').textContent = '.m3u veya .m3u8 · en fazla 64 MB';
     let message = `${result.channels.length} kanal işlendi. Arşivde ${state.channels.length} kanal var.`;
     if (result.skipped) message += ` ${result.skipped} desteklenmeyen bağlantı atlandı.`;
     if (result.duplicates) message += ` ${result.duplicates} tekrar birleştirildi.`;

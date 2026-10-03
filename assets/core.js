@@ -1,7 +1,8 @@
-export const MAX_BYTES = 8 * 1024 * 1024;
-export const MAX_CHANNELS = 10000;
+export const MAX_BYTES = 64 * 1024 * 1024;
+export const MAX_CHANNELS = 100000;
 
 export function safeURL(value, base) {
+  if(typeof value!=='string'||!value.trim())return '';
   try {
     const url = base ? new URL(value, base) : new URL(value);
     return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password ? url.href : '';
@@ -18,15 +19,17 @@ function channelId(url) {
 export function makeChannel({ name, url, group = 'Diğer', logo = '', type = 'auto' }, base) {
   const stream = safeURL(url, base);
   if (!stream) throw new Error('Geçerli bir HTTP veya HTTPS yayın bağlantısı girin.');
-  return { id: channelId(stream), url: stream, name: (name || 'İsimsiz kanal').trim().slice(0, 200), group: (group || 'Diğer').trim().slice(0, 100), logo: safeURL(logo, base), type: ['auto', 'hls', 'file'].includes(type) ? type : 'auto' };
+  return { id: channelId(stream), url: stream, name: (name || 'İsimsiz kanal').trim().slice(0, 200), group: (group || 'Diğer').trim().slice(0, 100), logo: safeURL(logo, base), type: ['auto', 'hls', 'ts', 'file'].includes(type) ? type : 'auto' };
 }
 
 export function parseM3U(text, base) {
-  if (new TextEncoder().encode(text).byteLength > MAX_BYTES) throw new Error('Liste en fazla 8 MB olabilir.');
+  if (new TextEncoder().encode(text).byteLength > MAX_BYTES) throw new Error('Liste en fazla 64 MB olabilir.');
   const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).map(line => line.trim());
   if (!lines.some(line => line.startsWith('#EXTM3U') || line.startsWith('#EXTINF:'))) throw new Error('Bu dosya bir M3U kanal listesi değil.');
   if (lines.some(line => line.startsWith('#EXT-X-'))) throw new Error('Bu bir HLS yayın bağlantısı. Tek yayın sekmesinden ekleyin.');
   const channels = [], seen = new Set();
+  let tsList=false;
+  try {tsList=new URL(base).searchParams.get('output')==='ts';}catch{}
   let info = null, skipped = 0, duplicates = 0;
   for (const line of lines) {
     if (!line) continue;
@@ -43,11 +46,12 @@ export function parseM3U(text, base) {
     else if (!line.startsWith('#')) {
       try {
         const channel = makeChannel({ ...(info || { name: `Kanal ${channels.length + 1}` }), url: line }, base);
+        if(tsList && streamType(channel)==='hls' && !/\.m3u8$/i.test(new URL(channel.url).pathname))channel.type='ts';
         if (seen.has(channel.url)) duplicates++;
         else { seen.add(channel.url); channels.push(channel); }
       } catch { skipped++; }
       info = null;
-      if (channels.length > MAX_CHANNELS) throw new Error('Bir listede en fazla 10.000 kanal olabilir.');
+      if (channels.length > MAX_CHANNELS) throw new Error('Bir listede en fazla 100.000 yayın olabilir.');
     }
   }
   if (!channels.length) throw new Error('Listede kullanılabilir bir HTTP veya HTTPS yayını bulunamadı.');
@@ -62,13 +66,18 @@ export function filterChannels(channels, { query = '', group = '', favoritesOnly
 }
 export function groupsFor(channels) { return [...new Set(channels.map(channel => channel.group))].sort(collator.compare); }
 export function streamType(channel) {
-  if (channel.type !== 'auto') return channel.type;
-  return /\.(mp4|webm|ogg|m4v)$/i.test(new URL(channel.url).pathname) ? 'file' : 'hls';
+  if (channel.type && channel.type !== 'auto') return channel.type;
+  const path=new URL(channel.url).pathname;
+  if(/\.m3u8$/i.test(path))return 'hls';
+  if(/\.(ts|m2ts)$/i.test(path))return 'ts';
+  if(/\.(mp4|webm|ogg|m4v|mkv|mov|avi)$/i.test(path)||/^\/(movie|series)\//i.test(path))return 'file';
+  if(/^\/live\//i.test(path)||/^\/[^/]+\/[^/]+\/\d+$/.test(path))return 'ts';
+  return 'hls';
 }
 export function mergeChannels(current, incoming) {
   const map = new Map(current.map(channel => [channel.url, channel]));
   for (const channel of incoming) map.set(channel.url, channel);
-  if (map.size > MAX_CHANNELS) throw new Error('Kanal arşivinde en fazla 10.000 kanal olabilir.');
+  if (map.size > MAX_CHANNELS) throw new Error('Yayın arşivinde en fazla 100.000 yayın olabilir.');
   return [...map.values()];
 }
 
@@ -81,14 +90,14 @@ export async function fetchPlaylist(url, fetcher = fetch) {
   try {
     const response = await fetcher(href, { signal: controller.signal, credentials: 'omit', referrerPolicy: 'no-referrer' });
     if (!response.ok) throw new Error(`Liste sunucusu ${response.status} hatası döndürdü.`);
-    if (Number(response.headers.get('content-length')) > MAX_BYTES) throw new Error('Liste en fazla 8 MB olabilir.');
+    if (Number(response.headers.get('content-length')) > MAX_BYTES) throw new Error('Liste en fazla 64 MB olabilir.');
     const reader = response.body.getReader(), chunks = [];
     let size = 0;
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > MAX_BYTES) { await reader.cancel(); throw new Error('Liste en fazla 8 MB olabilir.'); }
+      if (size > MAX_BYTES) { await reader.cancel(); throw new Error('Liste en fazla 64 MB olabilir.'); }
       chunks.push(value);
     }
     return { text: await new Blob(chunks).text(), base: response.url || href };

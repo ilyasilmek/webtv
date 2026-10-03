@@ -17,7 +17,12 @@ export async function readState() {
   return new Promise((resolve, reject) => {
     const tx = database.transaction('library', 'readonly');
     const request = tx.objectStore('library').get('state');
-    request.onsuccess = () => resolve({ ...structuredClone(EMPTY), ...request.result });
+    request.onsuccess = () => {
+      const metadata=request.result||{};
+      const channels=tx.objectStore('library').get('channels');
+      channels.onsuccess=()=>resolve({...structuredClone(EMPTY),...metadata,channels:channels.result||metadata.channels||[]});
+      channels.onerror=()=>reject(new Error('Kanal listesi okunamadı. Sayfayı yenileyin.'));
+    };
     request.onerror = () => reject(new Error('Kanal listesi okunamadı. Sayfayı yenileyin.'));
   });
 }
@@ -29,8 +34,16 @@ export async function updateState(change) {
     const store = tx.objectStore('library');
     let next, failure;
     store.get('state').onsuccess = event => {
-      try { next = change({ ...structuredClone(EMPTY), ...event.target.result }); store.put(next, 'state'); }
-      catch (error) { failure = error; tx.abort(); }
+      const saved=event.target.result||{};
+      store.get('channels').onsuccess=event=> {
+        try {
+          const previous=event.target.result||saved.channels||[];
+          next=change({...structuredClone(EMPTY),...saved,channels:previous});
+          // A favorite or last-channel change must not rewrite a large IPTV archive.
+          if(next.channels!==previous||event.target.result===undefined)store.put(next.channels,'channels');
+          const {channels,...metadata}=next;store.put(metadata,'state');
+        } catch(error){failure=error;tx.abort();}
+      };
     };
     tx.oncomplete = () => { resolve(next); channel?.postMessage('changed'); };
     tx.onabort = tx.onerror = () => reject(failure || new Error('Liste kaydedilemedi. Tarayıcı depolama alanını kontrol edin.'));
