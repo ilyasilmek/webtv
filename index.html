@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#191D20"><meta name="referrer" content="no-referrer">
+  <title>WebTV — Kanal listesi</title>
+  <link rel="icon" href="./assets/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./assets/style.css"><script type="module" src="./assets/library.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">İçeriğe geç</a>
+  <header class="topbar"><a class="brand" href="./"><img src="./assets/mark.svg" alt="" width="34" height="34">WEB<span>TV</span></a><span class="header-note">KENDİ YAYIN LİSTENİZ</span><button class="button amber" id="add-list" data-icon="plus">Liste ekle</button></header>
+  <div class="library-shell">
+    <aside class="library-nav" aria-label="Kanal filtreleri">
+      <p class="eyebrow">YAYIN ARŞİVİ</p>
+      <button class="nav-item active" id="all-channels" data-icon="tv" aria-pressed="true">Tüm kanallar <span id="all-count" class="count">0</span></button>
+      <button class="nav-item" id="favorites" data-icon="heart" aria-pressed="false">Favoriler <span id="fav-count" class="count">0</span></button>
+      <div class="nav-divider"></div><p class="eyebrow">KATEGORİLER</p><div id="categories"></div>
+      <p class="nav-foot">Listeniz ve favorileriniz<br>bu tarayıcıda saklanır.</p>
+    </aside>
+    <main id="main" class="library-main">
+      <div class="page-heading"><div><p class="eyebrow">WEBTV / KANAL LİSTESİ</p><h1>Yayınlarınız, bir arada.</h1><p id="list-description" class="muted">Kanal listenizi ekleyin, izlemek istediğiniz yayını seçin.</p></div><span class="edition">01<span>YAYIN ARŞİVİ</span></span></div>
+      <section id="continue" class="continue-strip" hidden><div><span class="eyebrow">SON İZLENEN</span><h2 id="last-name"></h2><p id="last-group" class="muted"></p></div><a id="last-link" class="button dark" data-icon="play">İzlemeye devam et</a></section>
+      <div class="list-tools"><label class="search-field"><span data-icon="search"></span><input id="search" type="search" placeholder="Kanal veya kategori ara" aria-label="Kanal veya kategori ara" autocomplete="off"></label><label class="mobile-category">Kategori<select id="category-select"><option value="">Tüm kategoriler</option></select></label><button id="clear-list" class="text-button" hidden>Listeyi temizle</button></div>
+      <div class="list-caption"><h2 id="view-title">Tüm kanallar</h2><span id="result-count">0 KANAL</span></div>
+      <div id="channel-list" class="channel-list"></div>
+      <section id="empty" class="empty-state"><span class="empty-symbol" data-icon="tv"></span><p class="eyebrow">İLK YAYININIZI EKLEYİN</p><h2>Kumanda sizde.</h2><p>M3U dosyanızı yükleyin veya liste bağlantınızı ekleyin.<br>Kanallarınız burada sıralansın.</p><div class="empty-actions"><button id="empty-add" class="button dark" data-icon="plus">Kanal listesi ekle</button><button id="demo" class="text-button">Örnek yayını dene <span aria-hidden="true">→</span></button></div><small>Örnek yayın, oynatıcıyı denemek için bir test videosudur.</small></section>
+      <section id="no-results" class="no-results" hidden><h2>Kanal bulunamadı.</h2><p>Aramayı veya kategori filtresini değiştirin.</p><button class="text-button" id="reset-filters">Filtreleri sıfırla</button></section>
+      <div id="load-more-wrap" class="load-more" hidden><button class="button outline" id="load-more">Daha fazla kanal göster</button></div>
+      <footer class="page-footer"><span>WEBTV</span><span>Listeyi seçin. Yayını açın.</span></footer>
+    </main>
+  </div>
+  <dialog id="import-dialog" aria-labelledby="dialog-title">
+    <div class="dialog-head"><div><p class="eyebrow">YAYIN ARŞİVİNE EKLE</p><h2 id="dialog-title">Kanal listesi ekle</h2></div><button class="icon-button" id="close-dialog" aria-label="Pencereyi kapat" data-icon="close"></button></div>
+    <div class="import-tabs" role="tablist" aria-label="Ekleme yöntemi"><button role="tab" id="tab-file" aria-selected="true" aria-controls="panel-file" data-panel="file">Dosya</button><button role="tab" id="tab-url" aria-selected="false" aria-controls="panel-url" data-panel="url" tabindex="-1">Liste bağlantısı</button><button role="tab" id="tab-stream" aria-selected="false" aria-controls="panel-stream" data-panel="stream" tabindex="-1">Tek yayın</button></div>
+    <form id="import-form" novalidate>
+      <div role="tabpanel" id="panel-file" aria-labelledby="tab-file"><label class="file-area" for="playlist-file"><span data-icon="plus"></span><strong>M3U dosyasını seçin</strong><span id="file-name">.m3u veya .m3u8 · en fazla 8 MB</span><input id="playlist-file" type="file" accept=".m3u,.m3u8,text/plain,audio/x-mpegurl,application/vnd.apple.mpegurl"></label></div>
+      <div role="tabpanel" id="panel-url" aria-labelledby="tab-url" hidden><label class="field">M3U liste bağlantısı<input id="playlist-url" type="url" placeholder="https://sunucu.example/kanallar.m3u" autocomplete="off"></label><p class="field-help">Liste sunucusu tarayıcıdan erişime izin vermeli.</p></div>
+      <div role="tabpanel" id="panel-stream" aria-labelledby="tab-stream" hidden><label class="field">Kanal adı<input id="stream-name" maxlength="200" placeholder="Kanal adı"></label><label class="field">Yayın bağlantısı<input id="stream-url" type="url" placeholder="https://sunucu.example/yayin.m3u8" autocomplete="off"></label><label class="field">Yayın biçimi<select id="stream-type"><option value="auto">Otomatik</option><option value="hls">HLS (.m3u8)</option><option value="file">Video dosyası (MP4 / WebM)</option></select></label></div>
+      <label class="field">Listeye ekleme biçimi<select id="import-mode"><option value="merge">Mevcut kanallara ekle</option><option value="replace">Mevcut listeyi değiştir</option></select></label>
+      <p id="import-error" class="form-error" role="alert" hidden></p><button id="import-submit" class="button dark full-width" type="submit">Kanalları ekle</button><p class="field-help">Listeniz bu cihazda saklanır. Başka bir sunucuya yüklenmez.</p>
+    </form>
+  </dialog>
+  <dialog id="clear-dialog" aria-labelledby="clear-title"><h2 id="clear-title">Kanal listesi temizlensin mi?</h2><p>Bu tarayıcıdaki kanallar ve favoriler kaldırılacak.</p><div class="dialog-actions"><button class="button outline" id="cancel-clear">Vazgeç</button><button class="button dark" id="confirm-clear">Listeyi temizle</button></div></dialog>
+  <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+  <noscript>WebTV için tarayıcınızda JavaScript'i etkinleştirin.</noscript>
+</body>
+</html>
